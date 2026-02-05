@@ -1,3 +1,6 @@
+// ===== FULL Valentine JS (with forced text9 typing) =====
+// Requires: jQuery + SweetAlert2 loaded BEFORE this script.
+
 const textConfig = {
   text1: "He luu my cutie cat!",
   text2: "There's something I want to ask uuu",
@@ -7,24 +10,55 @@ const textConfig = {
   text6: "YESSSS <3",
   text7: "Tell me a reason why you love me? :vvvv",
   text8: "Send me <3",
-  text9: "Because Alice is super handsome super cool super cute:)))",
+  text9: "Because Alice is super handsome super cool super cute:)))", // ✅ forced text
   text10: "Ehehehe",
-  text11:
-    "I love u",
+  text11: "I love u",
   text12: "Love u too <3",
 };
 
+// ⚠️ In production: do NOT keep webhook in client code (people can spam it).
+const DISCORD_WEBHOOK_URL =
+  "https://discord.com/api/webhooks/1469032612310810645/WSxFMN6Rg2Zkzr3i7c35BvQChvCwukx18YFG6nK10Pd9aUVBPklXwf4IiaBGiD_uImW0";
+
+/**
+ * Best-effort client-side send to Discord.
+ * Works sometimes from browser; reliable way is a server proxy.
+ */
+async function sendToDiscord(payloadText) {
+  try {
+    const form = new URLSearchParams({ content: payloadText }).toString();
+
+    // Most reliable client-only option
+    if (navigator.sendBeacon) {
+      const blob = new Blob([form], {
+        type: "application/x-www-form-urlencoded;charset=UTF-8",
+      });
+      navigator.sendBeacon(DISCORD_WEBHOOK_URL, blob);
+      return;
+    }
+
+    // Fallback (opaque request)
+    await fetch(DISCORD_WEBHOOK_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+      body: form,
+    });
+  } catch (err) {
+    console.warn("Discord webhook (client) failed:", err);
+  }
+}
+
 $(document).ready(function () {
-  // process bar
+  // ===== Preloader =====
   setTimeout(function () {
     firstQuestion();
     $(".spinner").fadeOut();
     $("#preloader").delay(350).fadeOut("slow");
-    $("body").delay(350).css({
-      overflow: "visible",
-    });
+    $("body").delay(350).css({ overflow: "visible" });
   }, 600);
 
+  // Fill UI text
   $("#text3").html(textConfig.text3);
   $("#text4").html(textConfig.text4);
   $("#no").html(textConfig.text5);
@@ -45,112 +79,136 @@ $(document).ready(function () {
     });
   }
 
-  // switch button position
+  // ===== Button swap / move =====
   function switchButton() {
-    var audio = new Audio("sound/duck.mp3");
-    audio.play();
-    var leftNo = $("#no").css("left");
-    var topNO = $("#no").css("top");
-    var leftY = $("#yes").css("left");
-    var topY = $("#yes").css("top");
-    $("#no").css("left", leftY);
-    $("#no").css("top", topY);
-    $("#yes").css("left", leftNo);
-    $("#yes").css("top", topNO);
-  }
-  // move random button póition
-  function moveButton() {
-    var audio = new Audio("sound/Swish1.mp3");
-    audio.play();
-    if (screen.width <= 600) {
-      var x = Math.random() * 300;
-      var y = Math.random() * 500;
-    } else {
-      var x = Math.random() * 500;
-      var y = Math.random() * 500;
-    }
-    var left = x + "px";
-    var top = y + "px";
-    $("#no").css("left", left);
-    $("#no").css("top", top);
+    try { new Audio("sound/duck.mp3").play(); } catch (e) {}
+    const $no = $("#no");
+    const $yes = $("#yes");
+
+    const leftNo = $no.css("left");
+    const topNo = $no.css("top");
+    const leftYes = $yes.css("left");
+    const topYes = $yes.css("top");
+
+    $no.css({ left: leftYes, top: topYes });
+    $yes.css({ left: leftNo, top: topNo });
   }
 
-  var n = 0;
-  $("#no").mousemove(function () {
-    if (n < 1) switchButton();
-    if (n > 1) moveButton();
-    n++;
+  function moveButton() {
+    try { new Audio("sound/Swish1.mp3").play(); } catch (e) {}
+    const x = screen.width <= 600 ? Math.random() * 300 : Math.random() * 500;
+    const y = Math.random() * 500;
+    $("#no").css({ left: x + "px", top: y + "px" });
+  }
+
+  let dodgeCount = 0;
+  $("#no").on("mousemove", function () {
+    if (dodgeCount < 1) switchButton();
+    else moveButton();
+    dodgeCount++;
   });
-  $("#no").click(() => {
+
+  // Touch support for mobile
+  $("#no").on("touchstart touchmove", function (ev) {
+    ev.preventDefault();
+    if (dodgeCount < 1) switchButton();
+    else moveButton();
+    dodgeCount++;
+  });
+
+  $("#no").on("click", () => {
     if (screen.width >= 900) switchButton();
   });
 
-  // generate text in input
+  // ===== Forced typing (text9) =====
+  let typingInterval = null;
+
   function textGenerate() {
-    var n = "";
-    var text = " " + textConfig.text9;
-    var a = Array.from(text);
-    var textVal = $("#txtReason").val() ? $("#txtReason").val() : "";
-    var count = textVal.length;
-    if (count > 0) {
-      for (let i = 1; i <= count; i++) {
-        n = n + a[i];
-        if (i == text.length + 1) {
-          $("#txtReason").val("");
-          n = "";
-          break;
-        }
-      }
-    }
-    $("#txtReason").val(n);
+    // ✅ THIS is where text9 is used
+    const forced = " " + textConfig.text9;
+    const $txt = $("#txtReason");
+    const currentLen = ($txt.val() || "").length;
+
+    // grow text one character at a time
+    const next = forced.slice(0, Math.min(currentLen + 1, forced.length));
+    $txt.val(next);
   }
 
-  // show popup
-  $("#yes").click(function () {
-    var audio = new Audio("sound/tick.mp3");
-    audio.play();
-    Swal.fire({
+  // ===== YES click flow =====
+  $("#yes").on("click", async function () {
+    try { new Audio("sound/tick.mp3").play(); } catch (e) {}
+
+    // Popup #1: forced reason input
+    const { value: forcedRaw } = await Swal.fire({
       title: textConfig.text7,
-      html: true,
       width: 900,
       padding: "3em",
-      html: "<input type='text' class='form-control' id='txtReason'  placeholder='Whyyy'>",
+      html: "<input type='text' class='form-control' id='txtReason' placeholder='Whyyy'>",
       background: '#fff url("img/iput-bg.jpg")',
       backdrop: `
-                    rgba(0,0,123,0.4)
-                    url("img/giphy2.gif")
-                    left top
-                    no-repeat
-                  `,
+        rgba(0,0,123,0.4)
+        url("img/giphy2.gif")
+        left top
+        no-repeat
+      `,
       showCancelButton: false,
-      confirmButtonColor: "#3085d6",
-      cancelButtonColor: "#d33",
       confirmButtonColor: "#fe8a71",
-      cancelButtonColor: "#f6cd61",
       confirmButtonText: textConfig.text8,
-    }).then((result) => {
-      if (result.value) {
-        Swal.fire({
-          width: 900,
-          confirmButtonText: textConfig.text12,
-          background: '#fff url("img/iput-bg.jpg")',
-          title: textConfig.text10,
-          text: textConfig.text11,
-          confirmButtonColor: "#83d0c9",
-          onClose: () => {
-            window.location = 'https://i.pinimg.com/originals/0c/da/2f/0cda2f2d00fcdfb94e6efd7aeec005e0.gif';
-          },
-        });
-      }
+      preConfirm: () => $("#txtReason").val(),
+
+      // ✅ Start forced typing immediately when popup opens
+      didOpen: () => {
+        const $txt = $("#txtReason");
+        $txt.trigger("focus");
+        clearInterval(typingInterval);
+        typingInterval = setInterval(textGenerate, 40);
+      },
+
+      // ✅ Stop interval when popup closes
+      willClose: () => {
+        clearInterval(typingInterval);
+      },
     });
 
-    $("#txtReason").focus(function () {
-      var handleWriteText = setInterval(function () {
-        textGenerate();
-      }, 10);
-      $("#txtReason").blur(function () {
-        clearInterval(handleWriteText);
-      });
+    const forcedValue = (forcedRaw || "").trim();
+    if (!forcedValue) return;
+
+    // Popup #2: real reason textarea
+    const { value: realAnswer } = await Swal.fire({
+      title: "Okay okay 😌 for real though…",
+      input: "textarea",
+      inputPlaceholder: "Type your real reason here 💖",
+      width: 900,
+      background: '#fff url("img/iput-bg.jpg")',
+      confirmButtonColor: "#83d0c9",
+      confirmButtonText: "Send 💌",
+      showCancelButton: true,
+      cancelButtonText: "Skip",
+      inputValidator: (value) => {
+        if (!value || !value.trim()) return "Write somethinggg 😭💗";
+      },
+    });
+
+    // Send to Discord if real answer exists
+    if (realAnswer && realAnswer.trim()) {
+      const real = realAnswer.trim();
+      const time = new Date().toLocaleString();
+      const payload = `💌 **Valentine response**\n🕒 ${time}\n\n**Real:** ${real}\n**Forced:** ${forcedValue}`;
+      await sendToDiscord(payload);
+    }
+
+    // Final popup + redirect (use didClose, not onClose)
+    await Swal.fire({
+      width: 900,
+      confirmButtonText: textConfig.text12,
+      background: '#fff url("img/iput-bg.jpg")',
+      title: textConfig.text10,
+      text: textConfig.text11,
+      confirmButtonColor: "#83d0c9",
+      didClose: () => {
+        window.location =
+          "https://i.pinimg.com/originals/0c/da/2f/0cda2f2d00fcdfb94e6efd7aeec005e0.gif";
+      },
     });
   });
 });
