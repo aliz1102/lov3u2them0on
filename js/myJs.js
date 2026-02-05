@@ -119,51 +119,32 @@ $(document).ready(function () {
   $("#no").on("click", () => {
     if (screen.width >= 900) switchButton();
   });
+ let handleWriteText = null;
 
- function attachOneKeyAdvance(forcedText) {
-  const popup = Swal.getPopup();
-  const input = popup && popup.querySelector("#txtReason");
-  if (!input) return;
+  //text gen
+ function textGenerate() {
+  
+  var n = "";
+  var text = " " + textConfig.text9;
+  var a = Array.from(text);
 
-  let i = 0;
+  var textVal = $("#txtReason").val() ? $("#txtReason").val() : "";
+  var count = textVal.length;
 
-  // replace node to wipe any existing listeners
-  const fresh = input.cloneNode(true);
-  input.parentNode.replaceChild(fresh, input);
+  if (count > 0) {
+    for (let i = 1; i <= count; i++) {
+      n = n + a[i];
 
-  const render = () => {
-    fresh.value = forcedText.slice(0, i);
-    try { fresh.setSelectionRange(fresh.value.length, fresh.value.length); } catch (e) {}
-  };
+      if (i == text.length + 1) {
+        $("#txtReason").val("");
+        n = "";
+        break;
+      }
+    }
+  }
 
-  render();
-  fresh.focus();
-
-  fresh.addEventListener("keydown", (e) => {
-    if (e.key === "Tab") return;
-
-    const ignore = ["Shift","Control","Alt","Meta","ArrowLeft","ArrowRight","ArrowUp","ArrowDown"];
-    if (ignore.includes(e.key)) return;
-
-    e.preventDefault();
-
-    if (e.key === "Backspace") i = Math.max(0, i - 1);
-    else i = Math.min(forcedText.length, i + 1);
-
-    render();
-  }, true);
-
-  // overwrite if the browser inserts anything anyway (mobile/IME)
-  fresh.addEventListener("input", () => {
-    i = Math.min(forcedText.length, i + 1);
-    requestAnimationFrame(render);
-  }, true);
-
-  fresh.addEventListener("paste", (e) => e.preventDefault(), true);
-  fresh.addEventListener("drop", (e) => e.preventDefault(), true);
-
-} // ✅ CLOSE THE FUNCTION HERE
-
+  $("#txtReason").val(n);
+}
 // ✅ YES click handler OUTSIDE the function
 $("#yes").on("click", async function () {
     // Popup #1: forced reason input
@@ -185,8 +166,13 @@ $("#yes").on("click", async function () {
       confirmButtonColor: "#fe8a71",
       confirmButtonText: textConfig.text8,
       didOpen: () => {
-        attachOneKeyAdvance(" " + textConfig.text9);
+        clearInterval(handleWriteText);
+        handleWriteText = setInterval(textGenerate, 10);
+        document.getElementById("txtReason")?.focus();
       },
+      willClose: () => {
+        clearInterval(handleWriteText);
+},
     });
 
     // Popup #2: real reason textarea
