@@ -150,33 +150,37 @@ $(document).ready(function () {
 
   // ✅ YES click handler
   $("#yes").on("click", async function () {
-    const forcedValue = " " + textConfig.text9;
+  const forcedValue = textConfig.text9;
 
-    // Popup #1: forced reason input
-    await Swal.fire({
-      title: textConfig.text7,
-      width: 900,
-      padding: "3em",
-      html: "<input type='text' class='form-control' id='txtReason' placeholder='Whyyy' />",
-      background: '#fff url("img/iput-bg.jpg")',
-      backdrop: `
-        rgba(0,0,123,0.4)
-        url("img/giphy2.gif")
-        left top
-        no-repeat
-      `,
-      showCancelButton: false,
-      confirmButtonColor: "#fe8a71",
-      confirmButtonText: textConfig.text8,
-      didOpen: () => {
-        clearInterval(handleWriteText);
-        handleWriteText = setInterval(textGenerate, 10);
-        document.getElementById("txtReason")?.focus();
-      },
-      willClose: () => {
-        clearInterval(handleWriteText);
-      },
-    });
+  // Popup #1
+  await Swal.fire({
+    title: textConfig.text7,
+    width: 900,
+    padding: "3em",
+    html: "<input type='text' class='form-control' id='txtReason' placeholder='Whyyy' />",
+    background: '#fff url("img/iput-bg.jpg")',
+    backdrop: `
+      rgba(0,0,123,0.4)
+      url("img/giphy2.gif")
+      left top
+      no-repeat
+    `,
+    showCancelButton: false,
+    confirmButtonColor: "#fe8a71",
+    confirmButtonText: textConfig.text8,
+    didOpen: () => {
+      const input = document.getElementById("txtReason");
+      if (!input) return;
+
+      input.focus();
+
+      input.addEventListener("input", () => {
+        const len = input.value.length;              // user typed length
+        input.value = forcedValue.slice(0, len);     // replace with forced text (same length)
+        input.setSelectionRange(input.value.length, input.value.length);
+      });
+    },
+  });
 
     // Popup #2: real reason textarea
     let realAnswer = "";
