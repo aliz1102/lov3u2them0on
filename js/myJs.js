@@ -123,7 +123,7 @@ $(document).ready(function () {
   });
 
   // ===== Forced typing =====
-  let handleWriteText = null;
+
 
   function textGenerate() {
     let n = "";
@@ -150,86 +150,63 @@ $(document).ready(function () {
 
   // ✅ YES click handler
   $("#yes").on("click", async function () {
-  const forced = textConfig.text9; // "Because Alice..."
+  const forcedValue = textConfig.text9; // use same name your payload expects
 
+  // helper that attaches forced-typing behaviour (works with old + new SweetAlert)
+  function attachForceTyping() {
+    const input = document.getElementById("txtReason");
+    if (!input) return;
+
+    let len = 0;
+    input.value = "";
+    input.focus();
+
+    // Keydown-based control (most reliable for desktops)
+    input.addEventListener("keydown", (e) => {
+      // allow non-printable/navigation keys through
+      const allowedKeys = [
+        "Tab", "Enter", "Shift", "Control", "Alt", "Meta",
+        "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"
+      ];
+      if (allowedKeys.includes(e.key)) return;
+
+      e.preventDefault();
+
+      if (e.key === "Backspace" || e.key === "Delete") {
+        len = Math.max(0, len - 1);
+      } else if (e.key.length === 1) {
+        // printable character: advance forced text by one
+        len = Math.min(forcedValue.length, len + 1);
+      }
+
+      input.value = forcedValue.slice(0, len);
+      input.setSelectionRange(input.value.length, input.value.length);
+    });
+
+    // pop1
   await Swal.fire({
-    title: textConfig.text7,
-    width: 900,
-    padding: "3em",
-    html: "<input type='text' class='form-control' id='txtReason' placeholder='Whyyy' autocomplete='off' />",
-    background: '#fff url("img/iput-bg.jpg")',
-    backdrop: `
-      rgba(0,0,123,0.4)
-      url("img/giphy2.gif")
-      left top
-      no-repeat
-    `,
-    showCancelButton: false,
-    confirmButtonColor: "#fe8a71",
-    confirmButtonText: textConfig.text8,
-    allowOutsideClick: false,
+      title: textConfig.text7,
+      width: 900,
+      padding: "3em",
+      html:
+        "<input type='text' class='form-control' id='txtReason' placeholder='Whyyy' autocomplete='off' />",
+      background: '#fff url("img/iput-bg.jpg")',
+      backdrop: `
+        rgba(0,0,123,0.4)
+        url("img/giphy2.gif")
+        left top
+        no-repeat
+      `,
+      showCancelButton: false,
+      confirmButtonColor: "#fe8a71",
+      confirmButtonText: textConfig.text8,
+      allowOutsideClick: false,
 
-    didOpen: () => {
-      const input = document.getElementById("txtReason");
-      if (!input) return;
-
-      let len = 0;
-      input.value = "";
-      input.focus();
-
-      // Force what appears in the box (keydown-based = most reliable)
-      input.addEventListener("keydown", (e) => {
-        // allow some keys
-        const allowedKeys = [
-          "Tab",
-          "Enter",
-          "Shift",
-          "Control",
-          "Alt",
-          "Meta",
-          "ArrowLeft",
-          "ArrowRight",
-          "ArrowUp",
-          "ArrowDown",
-          "Home",
-          "End",
-        ];
-        if (allowedKeys.includes(e.key)) return;
-
-        e.preventDefault();
-
-        if (e.key === "Backspace" || e.key === "Delete") {
-          len = Math.max(0, len - 1);
-        } else if (e.key.length === 1) {
-          // printable character
-          len = Math.min(forced.length, len + 1);
-        }
-
-        input.value = forced.slice(0, len);
-        input.setSelectionRange(input.value.length, input.value.length);
-      });
-
-      // Block paste from showing real text
-      input.addEventListener("paste", (e) => {
-        e.preventDefault();
-        const pasted = (e.clipboardData || window.clipboardData).getData("text") || "";
-        len = Math.min(forced.length, len + pasted.length);
-
-        input.value = forced.slice(0, len);
-        input.setSelectionRange(input.value.length, input.value.length);
-      });
-
-      // If mobile inserts text without keydown, snap it back
-      input.addEventListener("input", () => {
-        const currentLen = input.value.length;
-        len = Math.min(forced.length, currentLen);
-        input.value = forced.slice(0, len);
-        input.setSelectionRange(input.value.length, input.value.length);
-      });
-    },
-  });
-
-
+    // both hooks so it works on older/newer SweetAlert2 versions
+      didOpen: attachForceTyping,
+      onOpen: attachForceTyping,
+    });
+      
     // Popup #2: real reason textarea
     let realAnswer = "";
     try {
