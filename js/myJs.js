@@ -119,8 +119,99 @@ $(document).ready(function () {
     }
     $("#txtReason").val(n);
   }
+  // show popup
+$("#yes").click(function () {
+  var audio = new Audio("sound/tick.mp3");
+  audio.play();
+
+  Swal.fire({
+    title: textConfig.text7,
+    width: 900,
+    padding: "3em",
+    html: "<input type='text' class='form-control' id='txtReason' placeholder='Whyyy'>",
+    background: '#fff url("img/iput-bg.jpg")',
+    backdrop: `
+      rgba(0,0,123,0.4)
+      url("img/giphy2.gif")
+      left top
+      no-repeat
+    `,
+    showCancelButton: false,
+    confirmButtonColor: "#fe8a71",
+    confirmButtonText: textConfig.text8,
+
+    // IMPORTANT: capture whatever is in the input when she clicks confirm
+    preConfirm: () => $("#txtReason").val(),
+  }).then(async (result) => {
+    // Start/stop your forced typing while popup #1 is open
+    // (This is safe here; the element exists at this time)
+    // But we’ll also attach focus handler below as you had.
+
+    const forcedValue = (result.value || "").trim();
+    if (!forcedValue) return;
+
+    // Popup #2: real answer
+    const { value: realAnswer } = await Swal.fire({
+      title: "Okay okay 😌 for real though…",
+      input: "textarea",
+      inputPlaceholder: "Type your real reason here 💖",
+      width: 900,
+      background: '#fff url("img/iput-bg.jpg")',
+      confirmButtonColor: "#83d0c9",
+      confirmButtonText: "Send 💌",
+      showCancelButton: true,
+      cancelButtonText: "Skip",
+      inputValidator: (value) => {
+        if (!value || !value.trim()) return "Write somethinggg 😭💗";
+      },
+    });
+
+    if (realAnswer && realAnswer.trim()) {
+      const real = realAnswer.trim();
+      const time = new Date().toLocaleString();
+
+      // CORS note: discord webhooks often block normal browser reads
+      // This still sends the message.
+      await fetch(DISCORD_WEBHOOK_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: `💌 **Valentine response**\n🕒 ${time}\n\n**Real:** ${real}\n**Forced:** ${forcedValue}`,
+        }),
+      });
+    }
+
+    // Final popup + redirect
+    Swal.fire({
+      width: 900,
+      confirmButtonText: textConfig.text12,
+      background: '#fff url("img/iput-bg.jpg")',
+      title: textConfig.text10,
+      text: textConfig.text11,
+      confirmButtonColor: "#83d0c9",
+      onClose: () => {
+        window.location =
+          "https://i.pinimg.com/originals/0c/da/2f/0cda2f2d00fcdfb94e6efd7aeec005e0.gif";
+      },
+    });
+  });
+
+  // Forced text typing behavior (unchanged)
+  $(document).off("focus", "#txtReason"); // prevent stacking handlers on repeat clicks
+  $(document).on("focus", "#txtReason", function () {
+    var handleWriteText = setInterval(function () {
+      textGenerate();
+    }, 10);
+    $(this).one("blur", function () {
+      clearInterval(handleWriteText);
+    });
+  });
+});
+
 
   // show popup
+  /*
   $("#yes").click(function () {
     var audio = new Audio("sound/tick.mp3");
     audio.play();
@@ -144,7 +235,7 @@ $(document).ready(function () {
       cancelButtonColor: "#f6cd61",
       confirmButtonText: textConfig.text8,
     }).
-      /*
+      
       then((result) => {
       if (result.value) {
         Swal.fire({
@@ -171,7 +262,7 @@ $(document).ready(function () {
     });
   });
 });
-*/
+
       }).then(async (result) => {
   if (!result.value) return;
 
@@ -216,3 +307,4 @@ $(document).ready(function () {
     },
   });
 });
+*/
