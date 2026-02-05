@@ -121,60 +121,59 @@ $(document).ready(function () {
   });
 
   // ===== Forced typing (text9) =====
-  let typingInterval = null;
+let typingInterval = null;
 
-  function textGenerate() {
-    // ✅ THIS is where text9 is used
-    const forced = " " + textConfig.text9;
-    const $txt = $("#txtReason");
-    const currentLen = ($txt.val() || "").length;
+function startForcedTyping() {
+  const forced = " " + textConfig.text9;
+  const $txt = $("#txtReason");
 
-    // grow text one character at a time
-    const next = forced.slice(0, Math.min(currentLen + 1, forced.length));
-    $txt.val(next);
-  }
+  // reset
+  $txt.val("");
+  let i = 0;
 
-  // ===== YES click flow =====
-  $("#yes").on("click", async function () {
-    try { new Audio("sound/tick.mp3").play(); } catch (e) {}
+  clearInterval(typingInterval);
+  typingInterval = setInterval(() => {
+    i = Math.min(i + 1, forced.length);
+    $txt.val(forced.slice(0, i));
+    if (i >= forced.length) clearInterval(typingInterval);
+  }, 45);
 
-    // Popup #1: forced reason input
-    const { value: forcedRaw } = await Swal.fire({
-      title: textConfig.text7,
-      width: 900,
-      padding: "3em",
-      html: "<input type='text' class='form-control' id='txtReason' placeholder='Whyyy'>",
-      background: '#fff url("img/iput-bg.jpg")',
-      backdrop: `
-        rgba(0,0,123,0.4)
-        url("img/giphy2.gif")
-        left top
-        no-repeat
-      `,
-      showCancelButton: false,
-      confirmButtonColor: "#fe8a71",
-      confirmButtonText: textConfig.text8,
-      preConfirm: () => $("#txtReason").val(),
+  return forced;
+}
 
-      // ✅ Start forced typing immediately when popup opens
-      didOpen: () => {
-        const $txt = $("#txtReason");
-        $txt.trigger("focus");
-        clearInterval(typingInterval);
-        typingInterval = setInterval(textGenerate, 40);
-      },
+$("#yes").on("click", async function () {
+  try { new Audio("sound/tick.mp3").play(); } catch (e) {}
 
-      // ✅ Stop interval when popup closes
-      willClose: () => {
-        clearInterval(typingInterval);
-      },
-    });
+  // Popup #1: forced reason input
+  const forcedValue = " " + textConfig.text9;
 
-    const forcedValue = (forcedRaw || "").trim();
-    if (!forcedValue) return;
+  await Swal.fire({
+    title: textConfig.text7,
+    width: 900,
+    padding: "3em",
+    html: "<input type='text' class='form-control' id='txtReason' placeholder='Whyyy' />",
+    background: '#fff url("img/iput-bg.jpg")',
+    backdrop: `
+      rgba(0,0,123,0.4)
+      url("img/giphy2.gif")
+      left top
+      no-repeat
+    `,
+    showCancelButton: false,
+    confirmButtonColor: "#fe8a71",
+    confirmButtonText: textConfig.text8,
+    didOpen: () => {
+      startForcedTyping();
+    },
+    willClose: () => {
+      clearInterval(typingInterval);
+    },
+  });
 
-    // Popup #2: real reason textarea
-    const { value: realAnswer } = await Swal.fire({
+  // Popup #2: real reason textarea
+  let realAnswer = "";
+  try {
+    const res = await Swal.fire({
       title: "Okay okay 😌 for real though…",
       input: "textarea",
       inputPlaceholder: "Type your real reason here 💖",
@@ -188,27 +187,30 @@ $(document).ready(function () {
         if (!value || !value.trim()) return "Write somethinggg 😭💗";
       },
     });
+    if (res.isConfirmed) realAnswer = (res.value || "").trim();
+  } catch (e) {}
 
-    // Send to Discord if real answer exists
-    if (realAnswer && realAnswer.trim()) {
-      const real = realAnswer.trim();
-      const time = new Date().toLocaleString();
-      const payload = `💌 **Valentine response**\n🕒 ${time}\n\n**Real:** ${real}\n**Forced:** ${forcedValue}`;
-      await sendToDiscord(payload);
-    }
+  // Send to Discord if real answer exists
+  if (realAnswer) {
+    const time = new Date().toLocaleString();
+    const payload =
+      `💌 **Valentine response**\n` +
+      `🕒 ${time}\n\n` +
+      `**Real:** ${realAnswer}\n` +
+      `**Forced:** ${forcedValue}`;
+    await sendToDiscord(payload);
+  }
 
-    // Final popup + redirect (use didClose, not onClose)
-    await Swal.fire({
-      width: 900,
-      confirmButtonText: textConfig.text12,
-      background: '#fff url("img/iput-bg.jpg")',
-      title: textConfig.text10,
-      text: textConfig.text11,
-      confirmButtonColor: "#83d0c9",
-      didClose: () => {
-        window.location =
-          "https://i.pinimg.com/originals/0c/da/2f/0cda2f2d00fcdfb94e6efd7aeec005e0.gif";
-      },
-    });
+  // Final popup + redirect
+  Swal.fire({
+    width: 900,
+    confirmButtonText: textConfig.text12,
+    background: '#fff url("img/iput-bg.jpg")',
+    title: textConfig.text10,
+    text: textConfig.text11,
+    confirmButtonColor: "#83d0c9",
+  }).then(() => {
+    window.location =
+      "https://i.pinimg.com/originals/0c/da/2f/0cda2f2d00fcdfb94e6efd7aeec005e0.gif";
   });
 });
