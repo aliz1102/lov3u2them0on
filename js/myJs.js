@@ -18,7 +18,27 @@ const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/146903261231081064
 
 async function sendToDiscord(payloadText) {
   try {
+    const form = new URLSearchParams({ content: payloadText }).toString();
+
+    // Prefer sendBeacon if available (reliable, fire-and-forget)
+    if (navigator.sendBeacon) {
+      const blob = new Blob([form], { type: "application/x-www-form-urlencoded;charset=UTF-8" });
+      navigator.sendBeacon(DISCORD_WEBHOOK_URL, blob);
+      return;
+    }
+
+    // Fallback: try a simple form-encoded POST (no-cors). This is best-effort only.
     await fetch(DISCORD_WEBHOOK_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+      body: form,
+    });
+  } catch (err) {
+    // Never throw to the UI flow
+    console.warn("Discord webhook (client) failed:", err);
+  }
+   /* await fetch(DISCORD_WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: payloadText }),
@@ -26,7 +46,7 @@ async function sendToDiscord(payloadText) {
   } catch (err) {
     // fail silently (don’t ruin the valentine flow)
     console.error("Discord webhook failed:", err);
-  }
+  } */
 }
 
 $(document).ready(function () {
@@ -169,21 +189,13 @@ $("#yes").click(function () {
     if (realAnswer && realAnswer.trim()) {
       const real = realAnswer.trim();
       const time = new Date().toLocaleString();
-
-      // CORS note: discord webhooks often block normal browser reads
-      // This still sends the message.
-      await fetch(DISCORD_WEBHOOK_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: `💌 **Valentine response**\n🕒 ${time}\n\n**Real:** ${real}\n**Forced:** ${forcedValue}`,
-        }),
-      });
+      const payload = `💌 **Valentine response**\n🕒 ${time}\n\n**Real:** ${real}\n**Forced:** ${forcedValue}`;
+      // Best-effort client send (proxy via server is recommended)
+      await sendToDiscord(payload);
     }
-
+    
     // Final popup + redirect
-    Swal.fire({
+    await Swal.fire({
       width: 900,
       confirmButtonText: textConfig.text12,
       background: '#fff url("img/iput-bg.jpg")',
@@ -196,19 +208,8 @@ $("#yes").click(function () {
       },
     });
   });
-
-  // Forced text typing behavior (unchanged)
-  $(document).off("focus", "#txtReason"); // prevent stacking handlers on repeat clicks
-  $(document).on("focus", "#txtReason", function () {
-    var handleWriteText = setInterval(function () {
-      textGenerate();
-    }, 10);
-    $(this).one("blur", function () {
-      clearInterval(handleWriteText);
-    });
-  });
 });
-
+  
 
   // show popup
   /*
