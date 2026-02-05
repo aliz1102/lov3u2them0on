@@ -77,7 +77,7 @@ $(document).ready(function () {
     }).then(function () {
       $(".content").show(200);
     });
-  }}
+  }
 
   // ===== Button swap / move =====
   function switchButton() {
@@ -213,4 +213,5 @@ $("#yes").on("click", async function () {
     window.location =
       "https://i.pinimg.com/originals/0c/da/2f/0cda2f2d00fcdfb94e6efd7aeec005e0.gif";
   });
+});
 });
