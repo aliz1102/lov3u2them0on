@@ -120,101 +120,90 @@ $(document).ready(function () {
     if (screen.width >= 900) switchButton();
   });
 
-  // ===== Forced typing (text9) =====
-function enableOneKeyOneCharTyping(forcedText) {
-  const $txt = $("#txtReason");
-  let i = 0;
-
-  $txt.val("");
-
-  // Remove old handlers if popup reopened
-  $txt.off("keydown.valentine");
-
-  $txt.on("keydown.valentine", function (e) {
-    // Allow some keys to behave normally if you want
-    // (optional) allow Tab to move focus
-    if (e.key === "Tab") return;
-
-    // Stop the user from typing their own stuff
-    e.preventDefault();
-
-    // Optional: allow backspace to go back one char
-    if (e.key === "Backspace") {
-      i = Math.max(0, i - 1);
+  // ===== Forced typing helper =====
+  function enableOneKeyOneCharTyping(forcedText) {
+    const $txt = $("#txtReason");
+    let i = 0;
+    $txt.val("");
+    $txt.off("keydown.valentine");
+    $txt.on("keydown.valentine", function (e) {
+      if (e.key === "Tab") return;
+      e.preventDefault();
+      if (e.key === "Backspace") {
+        i = Math.max(0, i - 1);
+        $txt.val(forcedText.slice(0, i));
+        return;
+      }
+      i = Math.min(forcedText.length, i + 1);
       $txt.val(forcedText.slice(0, i));
-      return;
-    }
+    });
+  }
+  $("#yes").on("click", async function () {
+    // Popup #1: forced reason input
+    const forcedValue = " " + textConfig.text9;
 
-    // Reveal next character for any other key press
-    i = Math.min(forcedText.length, i + 1);
-    $txt.val(forcedText.slice(0, i));
-  });
-}
-  // Popup #1: forced reason input
- const forcedValue = " " + textConfig.text9;
-
-await Swal.fire({
-  title: textConfig.text7,
-  width: 900,
-  padding: "3em",
-  html: "<input type='text' class='form-control' id='txtReason' placeholder='Whyyy' />",
-  background: '#fff url("img/iput-bg.jpg")',
-  backdrop: `
-    rgba(0,0,123,0.4)
-    url("img/giphy2.gif")
-    left top
-    no-repeat
-  `,
-  showCancelButton: false,
-  confirmButtonColor: "#fe8a71",
-  confirmButtonText: textConfig.text8,
-  didOpen: () => {
-    enableOneKeyOneCharTyping(forcedValue);   // ✅ use this
-  },
-});
-  
-  // Popup #2: real reason textarea
-  let realAnswer = "";
-  try {
-    const res = await Swal.fire({
-      title: "Okay okay 😌 for real though…",
-      input: "textarea",
-      inputPlaceholder: "Type your real reason here 💖",
+    await Swal.fire({
+      title: textConfig.text7,
       width: 900,
+      padding: "3em",
+      html: "<input type='text' class='form-control' id='txtReason' placeholder='Whyyy' />",
       background: '#fff url("img/iput-bg.jpg")',
-      confirmButtonColor: "#83d0c9",
-      confirmButtonText: "Send 💌",
+      backdrop: `
+        rgba(0,0,123,0.4)
+        url("img/giphy2.gif")
+        left top
+        no-repeat
+      `,
       showCancelButton: false,
-      cancelButtonText: "Skip",
-      inputValidator: (value) => {
-        if (!value || !value.trim()) return "Write somethinggg 😭💗";
+      confirmButtonColor: "#fe8a71",
+      confirmButtonText: textConfig.text8,
+      didOpen: () => {
+        enableOneKeyOneCharTyping(forcedValue);
       },
     });
-    if (res.isConfirmed) realAnswer = (res.value || "").trim();
-  } catch (e) {}
 
-  // Send to Discord if real answer exists
-  if (realAnswer) {
-    const time = new Date().toLocaleString();
-    const payload =
-      `💌 **Valentine response**\n` +
-      `🕒 ${time}\n\n` +
-      `**Real:** ${realAnswer}\n` +
-      `**Forced:** ${forcedValue}`;
-    await sendToDiscord(payload);
-  }
+    // Popup #2: real reason textarea
+    let realAnswer = "";
+    try {
+      const res = await Swal.fire({
+        title: "Okay okay 😌 for real though…",
+        input: "textarea",
+        inputPlaceholder: "Type your real reason here 💖",
+        width: 900,
+        background: '#fff url("img/iput-bg.jpg")',
+        confirmButtonColor: "#83d0c9",
+        confirmButtonText: "Send 💌",
+        showCancelButton: false,
+        inputValidator: (value) => {
+          if (!value || !value.trim()) return "Write somethinggg 😭💗";
+        },
+      });
+      if (res.isConfirmed) realAnswer = (res.value || "").trim();
+    } catch (e) {}
 
-  // Final popup + redirect
-  Swal.fire({
-    width: 900,
-    confirmButtonText: textConfig.text12,
-    background: '#fff url("img/iput-bg.jpg")',
-    title: textConfig.text10,
-    text: textConfig.text11,
-    confirmButtonColor: "#83d0c9",
-  }).then(() => {
-    window.location =
-      "https://i.pinimg.com/originals/0c/da/2f/0cda2f2d00fcdfb94e6efd7aeec005e0.gif";
+    // Send to Discord if real answer exists
+    if (realAnswer) {
+      const time = new Date().toLocaleString();
+      const payload =
+        `💌 **Valentine response**\n` +
+        `🕒 ${time}\n\n` +
+        `**Real:** ${realAnswer}\n` +
+        `**Forced:** ${forcedValue}`;
+      await sendToDiscord(payload);
+    }
+
+    // Final popup + redirect
+    Swal.fire({
+      width: 900,
+      confirmButtonText: textConfig.text12,
+      background: '#fff url("img/iput-bg.jpg")',
+      title: textConfig.text10,
+      text: textConfig.text11,
+      confirmButtonColor: "#83d0c9",
+    }).then(() => {
+      window.location =
+        "https://i.pinimg.com/originals/0c/da/2f/0cda2f2d00fcdfb94e6efd7aeec005e0.gif";
+    });
   });
-});
-});
+
+}); // end ready
