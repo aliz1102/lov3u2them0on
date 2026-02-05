@@ -1,3 +1,6 @@
+// == fixed-valentine.js ==
+// Requires: jQuery, SweetAlert2
+
 const textConfig = {
   text1: "He luu my cutie cat!",
   text2: "There's something I want to ask uuu",
@@ -9,25 +12,30 @@ const textConfig = {
   text8: "Send me <3",
   text9: "Because Alice is super handsome super cool super cute:)))",
   text10: "Ehehehe",
-  text11:
-    "I love u",
+  text11: "I love u",
   text12: "Love u too <3",
 };
 
+// Client-side webhook (in production, proxy this server-side)
 const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1469032612310810645/WSxFMN6Rg2Zkzr3i7c35BvQChvCwukx18YFG6nK10Pd9aUVBPklXwf4IiaBGiD_uImW0";
 
+/**
+ * Best-effort client-side send:
+ *  - uses navigator.sendBeacon if available
+ *  - otherwise tries a no-cors form POST
+ *  - wrapped in try/catch so UI won't break
+ */
 async function sendToDiscord(payloadText) {
   try {
     const form = new URLSearchParams({ content: payloadText }).toString();
 
-    // Prefer sendBeacon if available (reliable, fire-and-forget)
     if (navigator.sendBeacon) {
       const blob = new Blob([form], { type: "application/x-www-form-urlencoded;charset=UTF-8" });
       navigator.sendBeacon(DISCORD_WEBHOOK_URL, blob);
       return;
     }
 
-    // Fallback: try a simple form-encoded POST (no-cors). This is best-effort only.
+    // fallback (opaque request) - best-effort only
     await fetch(DISCORD_WEBHOOK_URL, {
       method: "POST",
       mode: "no-cors",
@@ -35,31 +43,20 @@ async function sendToDiscord(payloadText) {
       body: form,
     });
   } catch (err) {
-    // Never throw to the UI flow
     console.warn("Discord webhook (client) failed:", err);
   }
-   /* await fetch(DISCORD_WEBHOOK_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: payloadText }),
-    });
-  } catch (err) {
-    // fail silently (don’t ruin the valentine flow)
-    console.error("Discord webhook failed:", err);
-  } */
 }
 
 $(document).ready(function () {
-  // process bar
+  // preloader handling
   setTimeout(function () {
     firstQuestion();
     $(".spinner").fadeOut();
     $("#preloader").delay(350).fadeOut("slow");
-    $("body").delay(350).css({
-      overflow: "visible",
-    });
+    $("body").delay(350).css({ overflow: "visible" });
   }, 600);
 
+  // fill static text
   $("#text3").html(textConfig.text3);
   $("#text4").html(textConfig.text4);
   $("#no").html(textConfig.text5);
@@ -80,97 +77,98 @@ $(document).ready(function () {
     });
   }
 
-  // switch button position
+  // ===== button switching / dodging =====
   function switchButton() {
-    var audio = new Audio("sound/duck.mp3");
-    audio.play();
-    var leftNo = $("#no").css("left");
-    var topNO = $("#no").css("top");
-    var leftY = $("#yes").css("left");
-    var topY = $("#yes").css("top");
-    $("#no").css("left", leftY);
-    $("#no").css("top", topY);
-    $("#yes").css("left", leftNo);
-    $("#yes").css("top", topNO);
-  }
-  // move random button póition
-  function moveButton() {
-    var audio = new Audio("sound/Swish1.mp3");
-    audio.play();
-    if (screen.width <= 600) {
-      var x = Math.random() * 300;
-      var y = Math.random() * 500;
-    } else {
-      var x = Math.random() * 500;
-      var y = Math.random() * 500;
-    }
-    var left = x + "px";
-    var top = y + "px";
-    $("#no").css("left", left);
-    $("#no").css("top", top);
+    try { new Audio("sound/duck.mp3").play(); } catch (e) {}
+    const $no = $("#no"), $yes = $("#yes");
+    const leftNo = $no.css("left"), topNo = $no.css("top");
+    const leftYes = $yes.css("left"), topYes = $yes.css("top");
+    $no.css({ left: leftYes, top: topYes });
+    $yes.css({ left: leftNo, top: topNo });
   }
 
-  var n = 0;
-  $("#no").mousemove(function () {
-    if (n < 1) switchButton();
-    if (n > 1) moveButton();
-    n++;
+  function moveButton() {
+    try { new Audio("sound/Swish1.mp3").play(); } catch (e) {}
+    const x = (screen.width <= 600) ? Math.random() * 300 : Math.random() * 500;
+    const y = Math.random() * 500;
+    $("#no").css({ left: x + "px", top: y + "px" });
+  }
+
+  let dodgeCount = 0;
+  $("#no").on("mousemove", function () {
+    if (dodgeCount < 1) switchButton();
+    else moveButton();
+    dodgeCount++;
   });
-  $("#no").click(() => {
+
+  // touch support
+  $("#no").on("touchstart touchmove", function (ev) {
+    ev.preventDefault();
+    if (dodgeCount < 1) switchButton();
+    else moveButton();
+    dodgeCount++;
+  });
+
+  $("#no").on("click", () => {
     if (screen.width >= 900) switchButton();
   });
 
-  // generate text in input
+  // ===== forced typing helper =====
+  let typingInterval = null;
   function textGenerate() {
-    var n = "";
-    var text = " " + textConfig.text9;
-    var a = Array.from(text);
-    var textVal = $("#txtReason").val() ? $("#txtReason").val() : "";
-    var count = textVal.length;
-    if (count > 0) {
-      for (let i = 1; i <= count; i++) {
-        n = n + a[i];
-        if (i == text.length + 1) {
-          $("#txtReason").val("");
-          n = "";
-          break;
-        }
-      }
-    }
-    $("#txtReason").val(n);
+    // Compose forced text and fill the input based on its current length.
+    const forced = " " + textConfig.text9; // keep original leading space
+    const $txt = $("#txtReason");
+    const cur = ($txt.val() || "");
+    const len = cur.length;
+    // Build next string safely using slice to avoid index errors
+    const next = forced.slice(0, Math.min(len + 1, forced.length));
+    $txt.val(next);
   }
-  // show popup
-$("#yes").click(function () {
-  var audio = new Audio("sound/tick.mp3");
-  audio.play();
 
-  Swal.fire({
-    title: textConfig.text7,
-    width: 900,
-    padding: "3em",
-    html: "<input type='text' class='form-control' id='txtReason' placeholder='Whyyy'>",
-    background: '#fff url("img/iput-bg.jpg")',
-    backdrop: `
-      rgba(0,0,123,0.4)
-      url("img/giphy2.gif")
-      left top
-      no-repeat
-    `,
-    showCancelButton: false,
-    confirmButtonColor: "#fe8a71",
-    confirmButtonText: textConfig.text8,
+  // ===== YES click / SweetAlert flow =====
+  $("#yes").click(async function () {
+    try { new Audio("sound/tick.mp3").play(); } catch (e) {}
 
-    // IMPORTANT: capture whatever is in the input when she clicks confirm
-    preConfirm: () => $("#txtReason").val(),
-  }).then(async (result) => {
-    // Start/stop your forced typing while popup #1 is open
-    // (This is safe here; the element exists at this time)
-    // But we’ll also attach focus handler below as you had.
+    // Popup #1: forced input
+    const { value: forcedRaw } = await Swal.fire({
+      title: textConfig.text7,
+      width: 900,
+      padding: "3em",
+      html: "<input type='text' class='form-control' id='txtReason' placeholder='Whyyy'>",
+      background: '#fff url("img/iput-bg.jpg")',
+      backdrop: `
+        rgba(0,0,123,0.4)
+        url("img/giphy2.gif")
+        left top
+        no-repeat
+      `,
+      showCancelButton: false,
+      confirmButtonColor: "#fe8a71",
+      confirmButtonText: textConfig.text8,
+      preConfirm: () => $("#txtReason").val(),
+      willOpen: () => {
+        // attach focus handler to start forced typing when input is focused
+        clearInterval(typingInterval);
+        $(document).off("focus", "#txtReason");
+        $(document).on("focus", "#txtReason", function () {
+          clearInterval(typingInterval);
+          typingInterval = setInterval(textGenerate, 40); // 40ms is fine
+          $(this).one("blur", function () {
+            clearInterval(typingInterval);
+          });
+        });
+      },
+      willClose: () => {
+        // always clear interval if modal closes
+        clearInterval(typingInterval);
+      },
+    });
 
-    const forcedValue = (result.value || "").trim();
-    if (!forcedValue) return;
+    const forcedValue = (forcedRaw || "").trim();
+    if (!forcedValue) return; // stop if user didn't provide the forced value
 
-    // Popup #2: real answer
+    // Popup #2: real textarea answer
     const { value: realAnswer } = await Swal.fire({
       title: "Okay okay 😌 for real though…",
       input: "textarea",
@@ -183,18 +181,17 @@ $("#yes").click(function () {
       cancelButtonText: "Skip",
       inputValidator: (value) => {
         if (!value || !value.trim()) return "Write somethinggg 😭💗";
-      },
+      }
     });
 
     if (realAnswer && realAnswer.trim()) {
       const real = realAnswer.trim();
       const time = new Date().toLocaleString();
       const payload = `💌 **Valentine response**\n🕒 ${time}\n\n**Real:** ${real}\n**Forced:** ${forcedValue}`;
-      // Best-effort client send (proxy via server is recommended)
       await sendToDiscord(payload);
     }
-    
-    // Final popup + redirect
+
+    // Final popup + redirect — use didClose (modern SweetAlert2 hook)
     await Swal.fire({
       width: 900,
       confirmButtonText: textConfig.text12,
@@ -202,110 +199,10 @@ $("#yes").click(function () {
       title: textConfig.text10,
       text: textConfig.text11,
       confirmButtonColor: "#83d0c9",
-      onClose: () => {
-        window.location =
-          "https://i.pinimg.com/originals/0c/da/2f/0cda2f2d00fcdfb94e6efd7aeec005e0.gif";
-      },
-    });
-  });
-});
-  
-
-  // show popup
-  /*
-  $("#yes").click(function () {
-    var audio = new Audio("sound/tick.mp3");
-    audio.play();
-    Swal.fire({
-      title: textConfig.text7,
-      html: true,
-      width: 900,
-      padding: "3em",
-      html: "<input type='text' class='form-control' id='txtReason'  placeholder='Whyyy'>",
-      background: '#fff url("img/iput-bg.jpg")',
-      backdrop: `
-                    rgba(0,0,123,0.4)
-                    url("img/giphy2.gif")
-                    left top
-                    no-repeat
-                  `,
-      showCancelButton: false,
-      confirmButtonColor: "#3085d6",
-      cancelButtonColor: "#d33",
-      confirmButtonColor: "#fe8a71",
-      cancelButtonColor: "#f6cd61",
-      confirmButtonText: textConfig.text8,
-    }).
-      
-      then((result) => {
-      if (result.value) {
-        Swal.fire({
-          width: 900,
-          confirmButtonText: textConfig.text12,
-          background: '#fff url("img/iput-bg.jpg")',
-          title: textConfig.text10,
-          text: textConfig.text11,
-          confirmButtonColor: "#83d0c9",
-          onClose: () => {
-            window.location = 'https://i.pinimg.com/originals/0c/da/2f/0cda2f2d00fcdfb94e6efd7aeec005e0.gif';
-          },
-        });
+      didClose: () => {
+        window.location = "https://i.pinimg.com/originals/0c/da/2f/0cda2f2d00fcdfb94e6efd7aeec005e0.gif";
       }
     });
-
-    $("#txtReason").focus(function () {
-      var handleWriteText = setInterval(function () {
-        textGenerate();
-      }, 10);
-      $("#txtReason").blur(function () {
-        clearInterval(handleWriteText);
-      });
-    });
-  });
-});
-
-      }).then(async (result) => {
-  if (!result.value) return;
-
-  // Popup #2: real answer
-  const { value: realAnswer } = await Swal.fire({
-    title: "Okay okay 😌 for real though…",
-    input: "textarea",
-    inputPlaceholder: "Type your real reason here 💖",
-    width: 900,
-    background: '#fff url("img/iput-bg.jpg")',
-    confirmButtonColor: "#83d0c9",
-    confirmButtonText: "Send 💌",
-    showCancelButton: true,
-    cancelButtonText: "Skip",
-    inputValidator: (value) => {
-      if (!value || !value.trim()) return "Write somethinggg 😭💗";
-    },
   });
 
-  // Send to Discord (only if she wrote something)
-  if (realAnswer && realAnswer.trim()) {
-    const forced = (result.value || "").trim();
-    const real = realAnswer.trim();
-    const time = new Date().toLocaleString();
-
-    await sendToDiscord(
-      `💌 **Valentine response**\n🕒 ${time}\n\n**Real:** ${real}\n**Forced:** ${forced}`
-    );
-  }
-
-  // Your final popup + redirect
-  Swal.fire({
-    width: 900,
-    confirmButtonText: textConfig.text12,
-    background: '#fff url("img/iput-bg.jpg")',
-    title: textConfig.text10,
-    text: textConfig.text11,
-    confirmButtonColor: "#83d0c9",
-    onClose: () => {
-      window.location =
-        "https://i.pinimg.com/originals/0c/da/2f/0cda2f2d00fcdfb94e6efd7aeec005e0.gif";
-    },
-  });
-});
-*/
+}); // end document.ready
