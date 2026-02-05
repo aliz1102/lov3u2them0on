@@ -1,4 +1,4 @@
-// ===== FULL Valentine JS (with forced text9 typing) =====
+// ===== FULL Valentine JS (forced text9 typing in Popup #1) =====
 // Requires: jQuery + SweetAlert2 loaded BEFORE this script.
 
 const textConfig = {
@@ -10,7 +10,7 @@ const textConfig = {
   text6: "YESSSS <3",
   text7: "Tell me a reason why you love me? :vvvv",
   text8: "Send me <3",
-  text9: "Because Alice is super handsome super cool super cute:)))",
+  text9: "Because Alice is super handsome super cool super cute:)))", // forced text shown to client
   text10: "Ehehehe",
   text11: "I love u",
   text12: "Love u too <3",
@@ -35,9 +35,7 @@ async function sendToDiscord(payloadText) {
     await fetch(DISCORD_WEBHOOK_URL, {
       method: "POST",
       mode: "no-cors",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-      },
+      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
       body: form,
     });
   } catch (err) {
@@ -80,7 +78,6 @@ $(document).ready(function () {
     try {
       new Audio("sound/duck.mp3").play();
     } catch (e) {}
-
     const $no = $("#no");
     const $yes = $("#yes");
 
@@ -97,14 +94,12 @@ $(document).ready(function () {
     try {
       new Audio("sound/Swish1.mp3").play();
     } catch (e) {}
-
     const x = screen.width <= 600 ? Math.random() * 300 : Math.random() * 500;
     const y = Math.random() * 500;
     $("#no").css({ left: x + "px", top: y + "px" });
   }
 
   let dodgeCount = 0;
-
   $("#no").on("mousemove", function () {
     if (dodgeCount < 1) switchButton();
     else moveButton();
@@ -118,76 +113,50 @@ $(document).ready(function () {
     dodgeCount++;
   });
 
-  $("#no").on("click", function () {
+  $("#no").on("click", () => {
     if (screen.width >= 900) switchButton();
   });
 
-  // ✅ YES click handler
-  $("#yes").on("click", async function () {
-    const forcedValue = textConfig.text9;
+  // ===== Forced typing (old working method) =====
+  // It overwrites the input based on its current length, revealing text9.
+  function textGenerate() {
+    let n = "";
+    const text = " " + textConfig.text9;
+    const a = Array.from(text);
 
-    // Attach forced typing to popup #1 input
-    function attachForceTyping() {
-      const input = document.getElementById("txtReason");
-      if (!input) return;
+    const textVal = $("#txtReason").val() ? $("#txtReason").val() : "";
+    const count = textVal.length;
 
-      let len = 0;
-      input.value = "";
-      input.focus();
-
-      input.addEventListener("keydown", (e) => {
-        const allowedKeys = [
-          "Tab",
-          "Enter",
-          "Shift",
-          "Control",
-          "Alt",
-          "Meta",
-          "ArrowLeft",
-          "ArrowRight",
-          "ArrowUp",
-          "ArrowDown",
-          "Home",
-          "End",
-        ];
-        if (allowedKeys.includes(e.key)) return;
-
-        e.preventDefault();
-
-        if (e.key === "Backspace" || e.key === "Delete") {
-          len = Math.max(0, len - 1);
-        } else if (e.key.length === 1) {
-          len = Math.min(forcedValue.length, len + 1);
+    if (count > 0) {
+      for (let i = 1; i <= count; i++) {
+        n = n + a[i];
+        if (i === text.length + 1) {
+          $("#txtReason").val("");
+          n = "";
+          break;
         }
-
-        input.value = forcedValue.slice(0, len);
-        input.setSelectionRange(input.value.length, input.value.length);
-      });
-
-      input.addEventListener("paste", (e) => {
-        e.preventDefault();
-        const pasted =
-          (e.clipboardData || window.clipboardData).getData("text") || "";
-        len = Math.min(forcedValue.length, len + pasted.length);
-        input.value = forcedValue.slice(0, len);
-        input.setSelectionRange(input.value.length, input.value.length);
-      });
-
-      input.addEventListener("input", () => {
-        const currentLen = input.value.length;
-        len = Math.min(forcedValue.length, currentLen);
-        input.value = forcedValue.slice(0, len);
-        input.setSelectionRange(input.value.length, input.value.length);
-      });
+      }
     }
 
-    // Popup #1 (forced text)
+    $("#txtReason").val(n);
+  }
+
+  let handleWriteText = null;
+
+  // ===== YES click flow (Popup #1 -> Popup #2 -> Final) =====
+  $("#yes").on("click", async function () {
+    try {
+      new Audio("sound/tick.mp3").play();
+    } catch (e) {}
+
+    const forcedValue = " " + textConfig.text9;
+
+    // Popup #1: forced typing shown to client
     await Swal.fire({
       title: textConfig.text7,
       width: 900,
       padding: "3em",
-      html:
-        "<input type='text' class='form-control' id='txtReason' placeholder='Whyyy' autocomplete='off' />",
+      html: "<input type='text' class='form-control' id='txtReason' placeholder='Whyyy'>",
       background: '#fff url("img/iput-bg.jpg")',
       backdrop: `
         rgba(0,0,123,0.4)
@@ -198,14 +167,21 @@ $(document).ready(function () {
       showCancelButton: false,
       confirmButtonColor: "#fe8a71",
       confirmButtonText: textConfig.text8,
-      allowOutsideClick: false,
 
-      // new SweetAlert2 + old fallback
-      didOpen: attachForceTyping,
-      onOpen: attachForceTyping,
+      // ✅ start early: immediately when popup opens
+      didOpen: () => {
+        clearInterval(handleWriteText);
+        handleWriteText = setInterval(textGenerate, 10);
+        document.getElementById("txtReason")?.focus();
+      },
+
+      // ✅ stop cleanly when popup closes
+      willClose: () => {
+        clearInterval(handleWriteText);
+      },
     });
 
-    // Popup #2: real reason textarea (UNCHANGED)
+    // Popup #2: real reason textarea (your current setting = no Skip)
     let realAnswer = "";
     try {
       const res = await Swal.fire({
@@ -221,11 +197,10 @@ $(document).ready(function () {
           if (!value || !value.trim()) return "Write somethinggg 😭💗";
         },
       });
-
       if (res.isConfirmed) realAnswer = (res.value || "").trim();
     } catch (e) {}
 
-    // Send to Discord
+    // Send to Discord if real answer exists
     if (realAnswer) {
       const time = new Date().toLocaleString();
       const payload =
@@ -233,7 +208,6 @@ $(document).ready(function () {
         `🕒 ${time}\n\n` +
         `**Real:** ${realAnswer}\n` +
         `**Forced:** ${forcedValue}`;
-
       await sendToDiscord(payload);
     }
 
