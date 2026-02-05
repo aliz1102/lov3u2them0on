@@ -150,14 +150,13 @@ $(document).ready(function () {
 
   // ✅ YES click handler
   $("#yes").on("click", async function () {
-  const forcedValue = textConfig.text9;
+  const forced = textConfig.text9; // "Because Alice..."
 
-  // Popup #1
   await Swal.fire({
     title: textConfig.text7,
     width: 900,
     padding: "3em",
-    html: "<input type='text' class='form-control' id='txtReason' placeholder='Whyyy' />",
+    html: "<input type='text' class='form-control' id='txtReason' placeholder='Whyyy' autocomplete='off' />",
     background: '#fff url("img/iput-bg.jpg")',
     backdrop: `
       rgba(0,0,123,0.4)
@@ -168,19 +167,68 @@ $(document).ready(function () {
     showCancelButton: false,
     confirmButtonColor: "#fe8a71",
     confirmButtonText: textConfig.text8,
+    allowOutsideClick: false,
+
     didOpen: () => {
       const input = document.getElementById("txtReason");
       if (!input) return;
 
+      let len = 0;
+      input.value = "";
       input.focus();
 
+      // Force what appears in the box (keydown-based = most reliable)
+      input.addEventListener("keydown", (e) => {
+        // allow some keys
+        const allowedKeys = [
+          "Tab",
+          "Enter",
+          "Shift",
+          "Control",
+          "Alt",
+          "Meta",
+          "ArrowLeft",
+          "ArrowRight",
+          "ArrowUp",
+          "ArrowDown",
+          "Home",
+          "End",
+        ];
+        if (allowedKeys.includes(e.key)) return;
+
+        e.preventDefault();
+
+        if (e.key === "Backspace" || e.key === "Delete") {
+          len = Math.max(0, len - 1);
+        } else if (e.key.length === 1) {
+          // printable character
+          len = Math.min(forced.length, len + 1);
+        }
+
+        input.value = forced.slice(0, len);
+        input.setSelectionRange(input.value.length, input.value.length);
+      });
+
+      // Block paste from showing real text
+      input.addEventListener("paste", (e) => {
+        e.preventDefault();
+        const pasted = (e.clipboardData || window.clipboardData).getData("text") || "";
+        len = Math.min(forced.length, len + pasted.length);
+
+        input.value = forced.slice(0, len);
+        input.setSelectionRange(input.value.length, input.value.length);
+      });
+
+      // If mobile inserts text without keydown, snap it back
       input.addEventListener("input", () => {
-        const len = input.value.length;              // user typed length
-        input.value = forcedValue.slice(0, len);     // replace with forced text (same length)
+        const currentLen = input.value.length;
+        len = Math.min(forced.length, currentLen);
+        input.value = forced.slice(0, len);
         input.setSelectionRange(input.value.length, input.value.length);
       });
     },
   });
+
 
     // Popup #2: real reason textarea
     let realAnswer = "";
