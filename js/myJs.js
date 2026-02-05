@@ -120,24 +120,41 @@ $(document).ready(function () {
     if (screen.width >= 900) switchButton();
   });
 
-  // ===== Forced typing helper =====
+ // ===== Forced typing helper: 1 key press = 1 char =====
   function enableOneKeyOneCharTyping(forcedText) {
     const $txt = $("#txtReason");
     let i = 0;
-    $txt.val("");
-    $txt.off("keydown.valentine");
+
+    $txt.val("").prop("readonly", true);
+    $txt.off(".valentine");
+
     $txt.on("keydown.valentine", function (e) {
       if (e.key === "Tab") return;
+
+      const ignore = [
+        "Shift","Control","Alt","Meta",
+        "ArrowLeft","ArrowRight","ArrowUp","ArrowDown"
+      ];
+      if (ignore.includes(e.key)) return;
+
       e.preventDefault();
+
       if (e.key === "Backspace") {
         i = Math.max(0, i - 1);
         $txt.val(forcedText.slice(0, i));
         return;
       }
+
       i = Math.min(forcedText.length, i + 1);
       $txt.val(forcedText.slice(0, i));
     });
+
+    $txt.on("beforeinput.valentine paste.valentine drop.valentine", function (e) {
+      e.preventDefault();
+    });
   }
+
+  // ✅ YES click handler MUST exist here
   $("#yes").on("click", async function () {
     // Popup #1: forced reason input
     const forcedValue = " " + textConfig.text9;
@@ -159,6 +176,7 @@ $(document).ready(function () {
       confirmButtonText: textConfig.text8,
       didOpen: () => {
         enableOneKeyOneCharTyping(forcedValue);
+        $("#txtReason").focus();
       },
     });
 
@@ -181,7 +199,6 @@ $(document).ready(function () {
       if (res.isConfirmed) realAnswer = (res.value || "").trim();
     } catch (e) {}
 
-    // Send to Discord if real answer exists
     if (realAnswer) {
       const time = new Date().toLocaleString();
       const payload =
@@ -192,7 +209,6 @@ $(document).ready(function () {
       await sendToDiscord(payload);
     }
 
-    // Final popup + redirect
     Swal.fire({
       width: 900,
       confirmButtonText: textConfig.text12,
@@ -204,6 +220,6 @@ $(document).ready(function () {
       window.location =
         "https://i.pinimg.com/originals/0c/da/2f/0cda2f2d00fcdfb94e6efd7aeec005e0.gif";
     });
-  });
+  });   // closes $("#yes").on("click", ...)
 
-}); // end ready
+});     // closes $(document).ready(...)
