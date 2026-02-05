@@ -121,55 +121,58 @@ $(document).ready(function () {
   });
 
   // ===== Forced typing (text9) =====
-let typingInterval = null;
-
-function startForcedTyping() {
-  const forced = " " + textConfig.text9;
+function enableOneKeyOneCharTyping(forcedText) {
   const $txt = $("#txtReason");
-
-  // reset
-  $txt.val("");
   let i = 0;
 
-  clearInterval(typingInterval);
-  typingInterval = setInterval(() => {
-    i = Math.min(i + 1, forced.length);
-    $txt.val(forced.slice(0, i));
-    if (i >= forced.length) clearInterval(typingInterval);
-  }, 45);
+  $txt.val("");
 
-  return forced;
-}
+  // Remove old handlers if popup reopened
+  $txt.off("keydown.valentine");
 
-$("#yes").on("click", async function () {
-  try { new Audio("sound/tick.mp3").play(); } catch (e) {}
+  $txt.on("keydown.valentine", function (e) {
+    // Allow some keys to behave normally if you want
+    // (optional) allow Tab to move focus
+    if (e.key === "Tab") return;
 
-  // Popup #1: forced reason input
-  const forcedValue = " " + textConfig.text9;
+    // Stop the user from typing their own stuff
+    e.preventDefault();
 
-  await Swal.fire({
-    title: textConfig.text7,
-    width: 900,
-    padding: "3em",
-    html: "<input type='text' class='form-control' id='txtReason' placeholder='Whyyy' />",
-    background: '#fff url("img/iput-bg.jpg")',
-    backdrop: `
-      rgba(0,0,123,0.4)
-      url("img/giphy2.gif")
-      left top
-      no-repeat
-    `,
-    showCancelButton: false,
-    confirmButtonColor: "#fe8a71",
-    confirmButtonText: textConfig.text8,
-    didOpen: () => {
-      startForcedTyping();
-    },
-    willClose: () => {
-      clearInterval(typingInterval);
-    },
+    // Optional: allow backspace to go back one char
+    if (e.key === "Backspace") {
+      i = Math.max(0, i - 1);
+      $txt.val(forcedText.slice(0, i));
+      return;
+    }
+
+    // Reveal next character for any other key press
+    i = Math.min(forcedText.length, i + 1);
+    $txt.val(forcedText.slice(0, i));
   });
+}
+  // Popup #1: forced reason input
+ const forcedValue = " " + textConfig.text9;
 
+await Swal.fire({
+  title: textConfig.text7,
+  width: 900,
+  padding: "3em",
+  html: "<input type='text' class='form-control' id='txtReason' placeholder='Whyyy' />",
+  background: '#fff url("img/iput-bg.jpg")',
+  backdrop: `
+    rgba(0,0,123,0.4)
+    url("img/giphy2.gif")
+    left top
+    no-repeat
+  `,
+  showCancelButton: false,
+  confirmButtonColor: "#fe8a71",
+  confirmButtonText: textConfig.text8,
+  didOpen: () => {
+    enableOneKeyOneCharTyping(forcedValue);   // ✅ use this
+  },
+});
+  
   // Popup #2: real reason textarea
   let realAnswer = "";
   try {
@@ -181,7 +184,7 @@ $("#yes").on("click", async function () {
       background: '#fff url("img/iput-bg.jpg")',
       confirmButtonColor: "#83d0c9",
       confirmButtonText: "Send 💌",
-      showCancelButton: true,
+      showCancelButton: false,
       cancelButtonText: "Skip",
       inputValidator: (value) => {
         if (!value || !value.trim()) return "Write somethinggg 😭💗";
