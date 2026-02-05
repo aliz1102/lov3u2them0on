@@ -122,69 +122,67 @@ $(document).ready(function () {
     if (screen.width >= 900) switchButton();
   });
 
-  // ===== Forced typing =====
-
-
-  function textGenerate() {
-    let n = "";
-    const text = " " + textConfig.text9;
-    const a = Array.from(text);
-
-    const textVal = $("#txtReason").val() ? $("#txtReason").val() : "";
-    const count = textVal.length;
-
-    if (count > 0) {
-      for (let i = 1; i <= count; i++) {
-        n += a[i];
-
-        if (i === text.length + 1) {
-          $("#txtReason").val("");
-          n = "";
-          break;
-        }
-      }
-    }
-
-    $("#txtReason").val(n);
-  }
-
   // ✅ YES click handler
   $("#yes").on("click", async function () {
-  const forcedValue = textConfig.text9; // use same name your payload expects
+    const forcedValue = textConfig.text9;
 
-  // helper that attaches forced-typing behaviour (works with old + new SweetAlert)
-  function attachForceTyping() {
-    const input = document.getElementById("txtReason");
-    if (!input) return;
+    // Attach forced typing to popup #1 input
+    function attachForceTyping() {
+      const input = document.getElementById("txtReason");
+      if (!input) return;
 
-    let len = 0;
-    input.value = "";
-    input.focus();
+      let len = 0;
+      input.value = "";
+      input.focus();
 
-    // Keydown-based control (most reliable for desktops)
-    input.addEventListener("keydown", (e) => {
-      // allow non-printable/navigation keys through
-      const allowedKeys = [
-        "Tab", "Enter", "Shift", "Control", "Alt", "Meta",
-        "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"
-      ];
-      if (allowedKeys.includes(e.key)) return;
+      input.addEventListener("keydown", (e) => {
+        const allowedKeys = [
+          "Tab",
+          "Enter",
+          "Shift",
+          "Control",
+          "Alt",
+          "Meta",
+          "ArrowLeft",
+          "ArrowRight",
+          "ArrowUp",
+          "ArrowDown",
+          "Home",
+          "End",
+        ];
+        if (allowedKeys.includes(e.key)) return;
 
-      e.preventDefault();
+        e.preventDefault();
 
-      if (e.key === "Backspace" || e.key === "Delete") {
-        len = Math.max(0, len - 1);
-      } else if (e.key.length === 1) {
-        // printable character: advance forced text by one
-        len = Math.min(forcedValue.length, len + 1);
-      }
+        if (e.key === "Backspace" || e.key === "Delete") {
+          len = Math.max(0, len - 1);
+        } else if (e.key.length === 1) {
+          len = Math.min(forcedValue.length, len + 1);
+        }
 
-      input.value = forcedValue.slice(0, len);
-      input.setSelectionRange(input.value.length, input.value.length);
-    });
+        input.value = forcedValue.slice(0, len);
+        input.setSelectionRange(input.value.length, input.value.length);
+      });
 
-    // pop1
-  await Swal.fire({
+      input.addEventListener("paste", (e) => {
+        e.preventDefault();
+        const pasted =
+          (e.clipboardData || window.clipboardData).getData("text") || "";
+        len = Math.min(forcedValue.length, len + pasted.length);
+        input.value = forcedValue.slice(0, len);
+        input.setSelectionRange(input.value.length, input.value.length);
+      });
+
+      input.addEventListener("input", () => {
+        const currentLen = input.value.length;
+        len = Math.min(forcedValue.length, currentLen);
+        input.value = forcedValue.slice(0, len);
+        input.setSelectionRange(input.value.length, input.value.length);
+      });
+    }
+
+    // Popup #1 (forced text)
+    await Swal.fire({
       title: textConfig.text7,
       width: 900,
       padding: "3em",
@@ -202,12 +200,12 @@ $(document).ready(function () {
       confirmButtonText: textConfig.text8,
       allowOutsideClick: false,
 
-    // both hooks so it works on older/newer SweetAlert2 versions
+      // new SweetAlert2 + old fallback
       didOpen: attachForceTyping,
       onOpen: attachForceTyping,
     });
-      
-    // Popup #2: real reason textarea
+
+    // Popup #2: real reason textarea (UNCHANGED)
     let realAnswer = "";
     try {
       const res = await Swal.fire({
