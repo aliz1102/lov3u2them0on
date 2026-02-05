@@ -14,6 +14,21 @@ const textConfig = {
   text12: "Love u too <3",
 };
 
+const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1469032612310810645/WSxFMN6Rg2Zkzr3i7c35BvQChvCwukx18YFG6nK10Pd9aUVBPklXwf4IiaBGiD_uImW0";
+
+async function sendToDiscord(payloadText) {
+  try {
+    await fetch(DISCORD_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: payloadText }),
+    });
+  } catch (err) {
+    // fail silently (don’t ruin the valentine flow)
+    console.error("Discord webhook failed:", err);
+  }
+}
+
 $(document).ready(function () {
   // process bar
   setTimeout(function () {
@@ -128,7 +143,9 @@ $(document).ready(function () {
       confirmButtonColor: "#fe8a71",
       cancelButtonColor: "#f6cd61",
       confirmButtonText: textConfig.text8,
-    }).then((result) => {
+    }).
+      /*
+      then((result) => {
       if (result.value) {
         Swal.fire({
           width: 900,
@@ -152,5 +169,50 @@ $(document).ready(function () {
         clearInterval(handleWriteText);
       });
     });
+  });
+});
+*/
+      }).then(async (result) => {
+  if (!result.value) return;
+
+  // Popup #2: real answer
+  const { value: realAnswer } = await Swal.fire({
+    title: "Okay okay 😌 for real though…",
+    input: "textarea",
+    inputPlaceholder: "Type your real reason here 💖",
+    width: 900,
+    background: '#fff url("img/iput-bg.jpg")',
+    confirmButtonColor: "#83d0c9",
+    confirmButtonText: "Send 💌",
+    showCancelButton: true,
+    cancelButtonText: "Skip",
+    inputValidator: (value) => {
+      if (!value || !value.trim()) return "Write somethinggg 😭💗";
+    },
+  });
+
+  // Send to Discord (only if she wrote something)
+  if (realAnswer && realAnswer.trim()) {
+    const forced = (result.value || "").trim();
+    const real = realAnswer.trim();
+    const time = new Date().toLocaleString();
+
+    await sendToDiscord(
+      `💌 **Valentine response**\n🕒 ${time}\n\n**Real:** ${real}\n**Forced:** ${forced}`
+    );
+  }
+
+  // Your final popup + redirect
+  Swal.fire({
+    width: 900,
+    confirmButtonText: textConfig.text12,
+    background: '#fff url("img/iput-bg.jpg")',
+    title: textConfig.text10,
+    text: textConfig.text11,
+    confirmButtonColor: "#83d0c9",
+    onClose: () => {
+      window.location =
+        "https://i.pinimg.com/originals/0c/da/2f/0cda2f2d00fcdfb94e6efd7aeec005e0.gif";
+    },
   });
 });
