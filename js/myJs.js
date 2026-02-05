@@ -120,40 +120,28 @@ $(document).ready(function () {
     if (screen.width >= 900) switchButton();
   });
 
- // ===== Forced typing helper: 1 key press = 1 char =====
-  function enableOneKeyOneCharTyping(forcedText) {
-    const $txt = $("#txtReason");
-    let i = 0;
+ function attachOneKeyAdvance(forcedText) {
+  const $txt = $("#txtReason");
+  let i = 0;
 
-    $txt.val("").prop("readonly", true);
-    $txt.off(".valentine");
+  $txt.val("");
+  $txt.off(".valentine");
 
-    $txt.on("keydown.valentine", function (e) {
-      if (e.key === "Tab") return;
+  // Each time the user tries to type, advance by 1 and overwrite value
+  $txt.on("input.valentine", function () {
+    i = Math.min(forcedText.length, i + 1);
+    $txt.val(forcedText.slice(0, i));
+  });
 
-      const ignore = [
-        "Shift","Control","Alt","Meta",
-        "ArrowLeft","ArrowRight","ArrowUp","ArrowDown"
-      ];
-      if (ignore.includes(e.key)) return;
-
+  // Backspace support
+  $txt.on("keydown.valentine", function (e) {
+    if (e.key === "Backspace") {
       e.preventDefault();
-
-      if (e.key === "Backspace") {
-        i = Math.max(0, i - 1);
-        $txt.val(forcedText.slice(0, i));
-        return;
-      }
-
-      i = Math.min(forcedText.length, i + 1);
+      i = Math.max(0, i - 1);
       $txt.val(forcedText.slice(0, i));
-    });
-
-    $txt.on("beforeinput.valentine paste.valentine drop.valentine", function (e) {
-      e.preventDefault();
-    });
-  }
-
+    }
+  });
+}
   // ✅ YES click handler MUST exist here
   $("#yes").on("click", async function () {
     // Popup #1: forced reason input
@@ -175,7 +163,8 @@ $(document).ready(function () {
       confirmButtonColor: "#fe8a71",
       confirmButtonText: textConfig.text8,
       didOpen: () => {
-        enableOneKeyOneCharTyping(forcedValue);
+        const forced = " " + textConfig.text9;
+        attachOneKeyAdvance(forced);
         $("#txtReason").focus();
       },
     });
