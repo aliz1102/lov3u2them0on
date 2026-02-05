@@ -77,7 +77,7 @@ $(document).ready(function () {
     }).then(function () {
       $(".content").show(200);
     });
-  }
+  }}
 
   // ===== Button swap / move =====
   function switchButton() {
