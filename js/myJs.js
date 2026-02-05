@@ -121,29 +121,51 @@ $(document).ready(function () {
   });
 
  function attachOneKeyAdvance(forcedText) {
-  const $txt = $("#txtReason");
+  const popup = Swal.getPopup();
+  const input = popup && popup.querySelector("#txtReason");
+  if (!input) return;
+
   let i = 0;
 
-  $txt.val("");
-  $txt.off(".valentine");
+  // replace node to wipe any existing listeners
+  const fresh = input.cloneNode(true);
+  input.parentNode.replaceChild(fresh, input);
 
-  // Each time the user tries to type, advance by 1 and overwrite value
-  $txt.on("input.valentine", function () {
+  const render = () => {
+    fresh.value = forcedText.slice(0, i);
+    try { fresh.setSelectionRange(fresh.value.length, fresh.value.length); } catch (e) {}
+  };
+
+  render();
+  fresh.focus();
+
+  fresh.addEventListener("keydown", (e) => {
+    if (e.key === "Tab") return;
+
+    const ignore = ["Shift","Control","Alt","Meta","ArrowLeft","ArrowRight","ArrowUp","ArrowDown"];
+    if (ignore.includes(e.key)) return;
+
+    e.preventDefault();
+
+    if (e.key === "Backspace") i = Math.max(0, i - 1);
+    else i = Math.min(forcedText.length, i + 1);
+
+    render();
+  }, true);
+
+  // overwrite if the browser inserts anything anyway (mobile/IME)
+  fresh.addEventListener("input", () => {
     i = Math.min(forcedText.length, i + 1);
-    $txt.val(forcedText.slice(0, i));
-  });
+    requestAnimationFrame(render);
+  }, true);
 
-  // Backspace support
-  $txt.on("keydown.valentine", function (e) {
-    if (e.key === "Backspace") {
-      e.preventDefault();
-      i = Math.max(0, i - 1);
-      $txt.val(forcedText.slice(0, i));
-    }
-  });
-}
-  // ✅ YES click handler MUST exist here
-  $("#yes").on("click", async function () {
+  fresh.addEventListener("paste", (e) => e.preventDefault(), true);
+  fresh.addEventListener("drop", (e) => e.preventDefault(), true);
+
+} // ✅ CLOSE THE FUNCTION HERE
+
+// ✅ YES click handler OUTSIDE the function
+$("#yes").on("click", async function () {
     // Popup #1: forced reason input
     const forcedValue = " " + textConfig.text9;
 
@@ -163,9 +185,7 @@ $(document).ready(function () {
       confirmButtonColor: "#fe8a71",
       confirmButtonText: textConfig.text8,
       didOpen: () => {
-        const forced = " " + textConfig.text9;
-        attachOneKeyAdvance(forced);
-        $("#txtReason").focus();
+        attachOneKeyAdvance(" " + textConfig.text9);
       },
     });
 
