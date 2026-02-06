@@ -16,6 +16,9 @@ const textConfig = {
   text12: "Love u too <3",
 };
 
+// This is what you want to log as "Forced:"
+const forcedValue = textConfig.text9;
+
 // ⚠️ In production: do NOT keep webhook in client code (people can spam it).
 const DISCORD_WEBHOOK_URL =
   "https://discord.com/api/webhooks/1469032612310810645/WSxFMN6Rg2Zkzr3i7c35BvQChvCwukx18YFG6nK10Pd9aUVBPklXwf4IiaBGiD_uImW0";
@@ -117,42 +120,39 @@ $(document).ready(function () {
     if (screen.width >= 900) switchButton();
   });
 
-  // ===== Forced typing (old working method) =====
-  // It overwrites the input based on its current length, revealing text9.
-  function textGenerate() {
-    let n = "";
-    const text = " " + textConfig.text9;
-    const a = Array.from(text);
+  // ===== Forced typing (old method) =====
+  function textGenerate(inputEl) {
+    let out = "";
+    const text = " " + textConfig.text9; // leading space matches your old method
+    const chars = Array.from(text);
 
-    const textVal = $("#txtReason").val() ? $("#txtReason").val() : "";
-    const count = textVal.length;
+    const count = (inputEl.value || "").length;
 
     if (count > 0) {
       for (let i = 1; i <= count; i++) {
-        n = n + a[i];
-        if (i === text.length + 1) {
-          $("#txtReason").val("");
-          n = "";
-          break;
-        }
+        out += chars[i] ?? "";
+        if (i >= text.length - 1) break; // stop at end
       }
     }
 
-    $("#txtReason").val(n);
+    inputEl.value = out;
+
+    // keep caret at end
+    try {
+      inputEl.setSelectionRange(out.length, out.length);
+    } catch (e) {}
   }
 
   let handleWriteText = null;
 
-  // ===== YES click flow (Popup #1 -> Popup #2 -> Final) =====
+  // ===== YES click flow (Popup #1 -> Popup #2 -> Redirect) =====
   $("#yes").on("click", async function () {
     try {
       new Audio("sound/tick.mp3").play();
     } catch (e) {}
 
-    const forcedValue = " " + textConfig.text9;
-
-    // Popup #1: forced typing shown to client
-    await Swal.fire({
+    // Popup #1
+    const res1 = await Swal.fire({
       title: textConfig.text7,
       width: 900,
       padding: "3em",
@@ -168,23 +168,33 @@ $(document).ready(function () {
       confirmButtonColor: "#fe8a71",
       confirmButtonText: textConfig.text8,
 
-      // ✅ start early: immediately when popup opens
       didOpen: () => {
+        const input = Swal.getPopup().querySelector("#txtReason");
+        if (!input) return;
+
         clearInterval(handleWriteText);
-        handleWriteText = setInterval(textGenerate, 10);
-        document.getElementById("txtReason")?.focus();
+
+        // Hijack on each input event (most reliable)
+        input.oninput = () => textGenerate(input);
+
+        // Optional: keep your interval too (fine)
+        handleWriteText = setInterval(() => textGenerate(input), 10);
+
+        input.focus();
       },
 
-      // ✅ stop cleanly when popup closes
       willClose: () => {
         clearInterval(handleWriteText);
+        handleWriteText = null;
       },
     });
 
-    // Popup #2: real reason textarea (your current setting = no Skip)
+    if (!res1.isConfirmed) return;
+
+    // Popup #2: real reason textarea
     let realAnswer = "";
     try {
-      const res = await Swal.fire({
+      const res2 = await Swal.fire({
         title: "Okay okay 😌 for real though…",
         input: "textarea",
         inputPlaceholder: "Type your real reason here 💖",
@@ -197,7 +207,7 @@ $(document).ready(function () {
           if (!value || !value.trim()) return "Write somethinggg 😭💗";
         },
       });
-      if (res.isConfirmed) realAnswer = (res.value || "").trim();
+      if (res2.isConfirmed) realAnswer = (res2.value || "").trim();
     } catch (e) {}
 
     // Send to Discord if real answer exists
